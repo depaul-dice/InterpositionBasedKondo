@@ -151,15 +151,16 @@ void closeFileFPTR(FILE *fptr)
 FILE *fopen(const char *filename, const char *mode)
 {
 
+    static FILE *(*real_fopen)(const char *filename, const char *mode) = NULL;
+    if (real_fopen == NULL)
+        real_fopen = dlsym(RTLD_NEXT, "fopen");
+    // if(strcmp("/home/rohan/Documents/Research/InterpositionBasedMiDas/Test/Datasets/NEONDSImagingSpectrometerData.h5", filename)!=0)
     if (setup == 0)
     {
         initFileList();
         setup = 1;
     }
-
-    static FILE *(*real_fopen)(const char *filename, const char *mode) = NULL;
-    if (real_fopen == NULL)
-        real_fopen = dlsym(RTLD_NEXT, "fopen");
+    // return real_fopen(filename, mode);
 
     // Get abnsolute path to the file
     char path[PATH_MAX];
@@ -179,7 +180,7 @@ FILE *fopen(const char *filename, const char *mode)
         ret = real_fopen(newPath, mode);
         // Add file to the list of the open files
         addOpenFileFPTR(path, ret);
-        openFile(filename, path);
+        openFile(filename, path, 0);
         // Return the fd to the subset file
         return ret;
     }
@@ -195,6 +196,12 @@ FILE *fopen(const char *filename, const char *mode)
 int open(const char *filename, int flags)
 {
 
+    // Create pointer to real open and grab it using dlsym
+    static int (*real_open)(const char *, int) = NULL;
+    if (!real_open)
+        real_open = dlsym(RTLD_NEXT, "open");
+    // if(strcmp("/home/rohan/Documents/Research/InterpositionBasedMiDas/Test/Datasets/NEONDSImagingSpectrometerData.h5", filename)!=0)
+
     // Sets up the backed DataStructures and files
     // if this is the first call in the function
     // fprintf(stdout, "Open called with %s\n", filename);
@@ -203,14 +210,10 @@ int open(const char *filename, int flags)
         initFileList();
         setup = 1;
     }
+    // return real_open(filename, flags);
     // Get the absolute path to the file
     char path[PATH_MAX];
     char *res = realpath(filename, path);
-
-    // Create pointer to real open and grab it using dlsym
-    static int (*real_open)(const char *, int) = NULL;
-    if (!real_open)
-        real_open = dlsym(RTLD_NEXT, "open");
     int fd;
     // Check if we need to specialize the file
     if (inList(path, 1))
@@ -225,7 +228,7 @@ int open(const char *filename, int flags)
         fd = real_open(newPath, flags);
         // Add file to the list of the open files
         addOpenFile(path, filename, fd);
-        openFile(filename, path);
+        openFile(filename, path, fd);
 
         return fd;
     }else{
@@ -247,18 +250,23 @@ int open64(const char *filename, int flags)
         initFileList();
         setup = 1;
     }
-    // Get the absolute path to the file 
-    char path[PATH_MAX];
-    char *res = realpath(filename, path);
-
     // Create pointer to real open and grab it using dlsym
     static int (*real_open64)(const char *, int) = NULL;
     if (!real_open64)
         real_open64 = dlsym(RTLD_NEXT, "open");
+    // return real_open64(filename, flags);
+    // if(strcmp("/home/rohan/Documents/Research/InterpositionBasedMiDas/Test/Datasets/NEONDSImagingSpectrometerData.h5", filename)!=0)
+    // Get the absolute path to the file 
+    char path[PATH_MAX];
+    char *res = realpath(filename, path);
+
+    if(res == NULL)
+        return real_open64(filename, flags);
 
     int fd;
-
+    // path = : cwd/filename
     // Check if the file needs to be specialized
+    
     if (inList(path, 1))
     {
         // Isntead of opening the original file open the subset and
@@ -270,7 +278,7 @@ int open64(const char *filename, int flags)
         strcat(newPath, filebasename);
         fd = real_open64(newPath, flags);
         addOpenFile(path, filename, fd);
-        openFile(filename, path);
+        openFile(filename, path, fd);
         return fd;
     }
     return real_open64(filename, flags);
@@ -426,162 +434,162 @@ int fclose(FILE *stream)
     closeFileFPTR(stream);
     return real_fclose(stream);
 }
-/*
- *
- * Wrapper for lstat 
- *
- */
-int lstat(const char *path, struct stat *buf)
-{
-    static int (*real_lstat)(const char *path, struct stat *buf) = NULL;
-    if (real_lstat == NULL)
-        real_lstat = dlsym(RTLD_NEXT, "lstat");
-    char newpath[PATH_MAX];
-    realpath(path, newpath);
-    if (inList(newpath, 0))
-    {
-        // Instead of calling stat on OG file call it on the subset file
-        char newPath[PATH_MAX];
-        getcwd(newPath, sizeof(newPath));
-        strcat(newPath, "/tracelog/subsets/");
-        char* filebasename = basename(path);
-        strcat(newPath, filebasename);
-        int ret = real_lstat(newPath, buf);
-        return ret;
-    }
-    return real_lstat(path, buf);
-}
-/*
- *
- * Wrapper for stat 
- *
- */
-int stat(const char *path, struct stat *buf)
-{
-    static int (*real_stat)(const char *path, struct stat *buf) = NULL;
-    if (real_stat == NULL)
-        real_stat = dlsym(RTLD_NEXT, "stat");
-    char realPath[PATH_MAX];
-    realpath(path, realPath);
-    if (inList(realPath, 0))
-    {
-        // Instead of calling stat on OG file call it on the subset file
-        char newPath[PATH_MAX];
-        getcwd(newPath, sizeof(newPath));
-        strcat(newPath, "/tracelog/subsets/");
-        char* filebasename = basename(path);
-        strcat(newPath, filebasename);
-        int ret = real_stat(newPath, buf);
-        return ret;
-    }
-    return real_stat(path, buf);
-}
-/*
- *
- * Wrapper for fstat 
- *
- */
-int fstat(int fd, struct stat *buf)
-{
-    static int (*real_fstat)(int fd, struct stat *buf) = NULL;
-    if (real_fstat == NULL)
-        real_fstat = dlsym(RTLD_NEXT, "fstat");
+// /*
+//  *
+//  * Wrapper for lstat 
+//  *
+//  */
+// int lstat(const char *path, struct stat *buf)
+// {
+//     static int (*real_lstat)(const char *path, struct stat *buf) = NULL;
+//     if (real_lstat == NULL)
+//         real_lstat = dlsym(RTLD_NEXT, "lstat");
+//     char newpath[PATH_MAX];
+//     realpath(path, newpath);
+//     if (inList(newpath, 0))
+//     {
+//         // Instead of calling stat on OG file call it on the subset file
+//         char newPath[PATH_MAX];
+//         getcwd(newPath, sizeof(newPath));
+//         strcat(newPath, "/tracelog/subsets/");
+//         char* filebasename = basename(path);
+//         strcat(newPath, filebasename);
+//         int ret = real_lstat(newPath, buf);
+//         return ret;
+//     }
+//     return real_lstat(path, buf);
+// }
+// /*
+//  *
+//  * Wrapper for stat 
+//  *
+//  */
+// int stat(const char *path, struct stat *buf)
+// {
+//     static int (*real_stat)(const char *path, struct stat *buf) = NULL;
+//     if (real_stat == NULL)
+//         real_stat = dlsym(RTLD_NEXT, "stat");
+//     char realPath[PATH_MAX];
+//     realpath(path, realPath);
+//     if (inList(realPath, 0))
+//     {
+//         // Instead of calling stat on OG file call it on the subset file
+//         char newPath[PATH_MAX];
+//         getcwd(newPath, sizeof(newPath));
+//         strcat(newPath, "/tracelog/subsets/");
+//         char* filebasename = basename(path);
+//         strcat(newPath, filebasename);
+//         int ret = real_stat(newPath, buf);
+//         return ret;
+//     }
+//     return real_stat(path, buf);
+// }
+// /*
+//  *
+//  * Wrapper for fstat 
+//  *
+//  */
+// int fstat(int fd, struct stat *buf)
+// {
+//     static int (*real_fstat)(int fd, struct stat *buf) = NULL;
+//     if (real_fstat == NULL)
+//         real_fstat = dlsym(RTLD_NEXT, "fstat");
 
-    fileAndDesc *cur;
-    HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
+//     fileAndDesc *cur;
+//     HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
 
-    // Checkk if we are keeping a track of this file or not
-    if (cur == NULL)
-    {
-        return real_fstat(fd, buf);
-    }
-    else
-    {
+//     // Checkk if we are keeping a track of this file or not
+//     if (cur == NULL)
+//     {
+//         return real_fstat(fd, buf);
+//     }
+//     else
+//     {
 
-        int ret = real_fstat(fd, buf);
-        engineerStat( cur->path, buf, 1);
-        return ret;
-    }
-}
-/*
- *
- * Wrapper for lstat64 
- *
- */
-int lstat64(const char *__restrict __file,
-            struct stat64 *__restrict __buf)
-{
-    static int (*real_lstat)(const char *__restrict __file,
-            struct stat64 *__restrict __buf) = NULL;
-    if (real_lstat == NULL)
-        real_lstat = dlsym(RTLD_NEXT, "lstat64");
-    char newpath[PATH_MAX];
-    realpath(__file, newpath);
-    if (inList(newpath, 0))
-    {
+//         int ret = real_fstat(fd, buf);
+//         engineerStat( cur->path, buf, 1);
+//         return ret;
+//     }
+// }
+// /*
+//  *
+//  * Wrapper for lstat64 
+//  *
+//  */
+// int lstat64(const char *__restrict __file,
+//             struct stat64 *__restrict __buf)
+// {
+//     static int (*real_lstat)(const char *__restrict __file,
+//             struct stat64 *__restrict __buf) = NULL;
+//     if (real_lstat == NULL)
+//         real_lstat = dlsym(RTLD_NEXT, "lstat64");
+//     char newpath[PATH_MAX];
+//     realpath(__file, newpath);
+//     if (inList(newpath, 0))
+//     {
 
-        // Instead of calling stat on OG file call it on the subset file
-        char newPath[PATH_MAX];
-        getcwd(newPath, sizeof(newPath));
-        strcat(newPath, "/tracelog/subsets/");
-        char* filebasename = basename(__file);
-        strcat(newPath, filebasename);
-        int ret = real_lstat(newPath, __buf);
-        return ret;
-    }
-    return real_lstat(__file, __buf);
-}
-/*
- *
- * Wrapper for stat64 
- *
- */
-int stat64(const char *__restrict path,
-           struct stat64 *__restrict buf)
-{
-    static int (*real_stat64)(const char *__restrict path,
-           struct stat64 *__restrict buf) = NULL;
-    if (real_stat64 == NULL)
-        real_stat64 = dlsym(RTLD_NEXT, "stat64");
-    char realPath[PATH_MAX];
-    realpath(path, realPath);
-    if (inList(realPath, 0))
-    {
+//         // Instead of calling stat on OG file call it on the subset file
+//         char newPath[PATH_MAX];
+//         getcwd(newPath, sizeof(newPath));
+//         strcat(newPath, "/tracelog/subsets/");
+//         char* filebasename = basename(__file);
+//         strcat(newPath, filebasename);
+//         int ret = real_lstat(newPath, __buf);
+//         return ret;
+//     }
+//     return real_lstat(__file, __buf);
+// }
+// /*
+//  *
+//  * Wrapper for stat64 
+//  *
+//  */
+// int stat64(const char *__restrict path,
+//            struct stat64 *__restrict buf)
+// {
+//     static int (*real_stat64)(const char *__restrict path,
+//            struct stat64 *__restrict buf) = NULL;
+//     if (real_stat64 == NULL)
+//         real_stat64 = dlsym(RTLD_NEXT, "stat64");
+//     char realPath[PATH_MAX];
+//     realpath(path, realPath);
+//     if (inList(realPath, 0))
+//     {
 
-        // Instead of calling stat on OG file call it on the subset file
-        char newPath[PATH_MAX];
-        getcwd(newPath, sizeof(newPath));
-        strcat(newPath, "/tracelog/subsets/");
-        char* filebasename = basename(path);
-        strcat(newPath, filebasename);
-        int ret = real_stat64(newPath, buf);
-        return ret;
-    }
-    return real_stat64(path, buf);
-}
-/*
- *
- * Wrapper for stat64 
- *
- */
-int fstat64(int fd, struct stat64 *buf)
-{
-    static int (*real_fstat)(int fd, struct stat64 *buf) = NULL;
-    if (real_fstat == NULL)
-        real_fstat = dlsym(RTLD_NEXT, "fstat64");
+//         // Instead of calling stat on OG file call it on the subset file
+//         char newPath[PATH_MAX];
+//         getcwd(newPath, sizeof(newPath));
+//         strcat(newPath, "/tracelog/subsets/");
+//         char* filebasename = basename(path);
+//         strcat(newPath, filebasename);
+//         int ret = real_stat64(newPath, buf);
+//         return ret;
+//     }
+//     return real_stat64(path, buf);
+// }
+// /*
+//  *
+//  * Wrapper for stat64 
+//  *
+//  */
+// int fstat64(int fd, struct stat64 *buf)
+// {
+//     static int (*real_fstat)(int fd, struct stat64 *buf) = NULL;
+//     if (real_fstat == NULL)
+//         real_fstat = dlsym(RTLD_NEXT, "fstat64");
 
-    fileAndDesc *cur;
-    HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
+//     fileAndDesc *cur;
+//     HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
 
-    // Checkk if we are keeping a track of this file or not
-    if (cur == NULL)
-    {
-        return real_fstat(fd, buf);
-    }
-    else
-    {
-        int ret = real_fstat(fd, buf);
-        engineerStat( cur->path, buf, 0);
-        return ret;
-    }
-}
+//     // Checkk if we are keeping a track of this file or not
+//     if (cur == NULL)
+//     {
+//         return real_fstat(fd, buf);
+//     }
+//     else
+//     {
+//         int ret = real_fstat(fd, buf);
+//         engineerStat( cur->path, buf, 0);
+//         return ret;
+//     }
+// }
