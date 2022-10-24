@@ -40,6 +40,6 @@ int setup1 = 0;
 int logicalTime = 0;
 void init();
 ssize_t performRead( char* path, void* buf);
-void openFile(const char* filename,char* path);
+void openFile(const char* filename,char* path, int fd);
 void getData(void* buf, SubsetPointer* cur, fileInfo* curFile);
 void engineerStat(char* path, void *buf, int loc);
