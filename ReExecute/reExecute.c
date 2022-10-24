@@ -17,7 +17,7 @@
  * @param path Path of file to open
  *
  */
-void openNewFile(const char* filename, char* path){
+void openNewFile(const char* filename, char* path, int fd){
     // Create new metadata structure
     fileInfo* newFile = malloc(sizeof(fileInfo));
     newFile->pointers=NULL;
@@ -42,7 +42,7 @@ void openNewFile(const char* filename, char* path){
 
     // Open the file with the redirection metadata and read it line by line
     // and popul;ate the appropriate linked list
-
+    
     FILE* fptr = fopen(pointer, "r");
     int ret = fscanf(fptr, "%ld", &newFile->size);
     while(1){
@@ -83,7 +83,9 @@ void openNewFile(const char* filename, char* path){
         HASH_ADD_INT(newFile->pointers, timestamp, curCall);
     }
     // Open the subset and backup files and store their FD
-    
+    if(fd!=0)
+    newFile->SubsetFD = fd;
+    else
     newFile->SubsetFD = open(subset, O_RDONLY);
     newFile->BackupFD = open(backup, O_RDONLY);
     strcpy(newFile->filename, filename);
@@ -100,13 +102,15 @@ void openNewFile(const char* filename, char* path){
  * @param path Path of file to open
  *
  */
-void openFile(const char* filename, char* path){
+void openFile(const char* filename, char* path, int fd){
     fileInfo* curFile;
     HASH_FIND(hh, Fname ,path, 1024, curFile);
     // If file is already open do nothing
     if(curFile==NULL){
     // If not open then call helper
-        openNewFile(filename, path);
+        openNewFile(filename, path, fd);
+    }else{
+        curFile->SubsetFD=fd;
     }
 }
 
