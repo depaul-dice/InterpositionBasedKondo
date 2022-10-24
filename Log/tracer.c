@@ -184,6 +184,46 @@ FILE *fopen(const char *filename, const char *mode)
     }
     return ret;
 }
+/*
+ *
+ * Wrapper for open 
+ *
+ */
+int openat(int dirfd, const char *filename, int flags)
+{
+
+    // Check if system has been setup
+    if (checkSetup() == 0)
+    {
+        initFileList();
+        finishSetup();
+        setup = 1;
+    }
+
+    // Get absolute path to the file
+    char path[PATH_MAX];
+    char *res = realpath(filename, path);
+
+
+    static int (*real_open)(const char *, int) = NULL;
+    if (!real_open)
+        real_open = dlsym(RTLD_NEXT, "open");
+
+    int fd = real_open(filename, flags);
+
+
+    // Check if we need to specialize this file ot not
+    if (inList(path))
+    {
+        // Add file to list of open files
+        addOpenFile(path, fd);
+        // Open files and create a metadata structure for the files if being opened for the first time
+        openFile(filename, path, fd, flags, NULL);
+    }
+    return fd;
+}
+
+
 
 /*
  *
