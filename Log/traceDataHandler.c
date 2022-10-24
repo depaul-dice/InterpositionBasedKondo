@@ -510,12 +510,14 @@ int captureStat(char *path, void *buf, int loc)
         if (loc == 1)
         {
             struct stat *stats = (struct stat *)buf;
+	    if(file->size<stats->st_size)
             file->size = stats->st_size;
         }
         else
         {
             struct stat64 *stats = (struct stat64 *)buf;
-            file->size = stats->st_size;
+	    if(file->size<stats->st_size)
+	    file->size = stats->st_size;
         }
     }
     return 1;
