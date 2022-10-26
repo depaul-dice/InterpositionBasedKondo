@@ -434,31 +434,31 @@ int fclose(FILE *stream)
     closeFileFPTR(stream);
     return real_fclose(stream);
 }
-// /*
-//  *
-//  * Wrapper for lstat 
-//  *
-//  */
-// int lstat(const char *path, struct stat *buf)
-// {
-//     static int (*real_lstat)(const char *path, struct stat *buf) = NULL;
-//     if (real_lstat == NULL)
-//         real_lstat = dlsym(RTLD_NEXT, "lstat");
-//     char newpath[PATH_MAX];
-//     realpath(path, newpath);
-//     if (inList(newpath, 0))
-//     {
-//         // Instead of calling stat on OG file call it on the subset file
-//         char newPath[PATH_MAX];
-//         getcwd(newPath, sizeof(newPath));
-//         strcat(newPath, "/tracelog/subsets/");
-//         char* filebasename = basename(path);
-//         strcat(newPath, filebasename);
-//         int ret = real_lstat(newPath, buf);
-//         return ret;
-//     }
-//     return real_lstat(path, buf);
-// }
+/*
+ *
+ * Wrapper for lstat 
+ *
+ */
+int lstat(const char *path, struct stat *buf)
+{
+    static int (*real_lstat)(const char *path, struct stat *buf) = NULL;
+    if (real_lstat == NULL)
+        real_lstat = dlsym(RTLD_NEXT, "lstat");
+    char newpath[PATH_MAX];
+    realpath(path, newpath);
+    if (inList(newpath, 0))
+    {
+        // Instead of calling stat on OG file call it on the subset file
+        char newPath[PATH_MAX];
+        getcwd(newPath, sizeof(newPath));
+        strcat(newPath, "/tracelog/subsets/");
+        char* filebasename = basename(path);
+        strcat(newPath, filebasename);
+        int ret = real_lstat(newPath, buf);
+        return ret;
+    }
+    return real_lstat(path, buf);
+}
 // /*
 //  *
 //  * Wrapper for stat 
@@ -484,33 +484,33 @@ int fclose(FILE *stream)
 //     }
 //     return real_stat(path, buf);
 // }
-// /*
-//  *
-//  * Wrapper for fstat 
-//  *
-//  */
-// int fstat(int fd, struct stat *buf)
-// {
-//     static int (*real_fstat)(int fd, struct stat *buf) = NULL;
-//     if (real_fstat == NULL)
-//         real_fstat = dlsym(RTLD_NEXT, "fstat");
+/*
+ *
+ * Wrapper for fstat 
+ *
+ */
+int fstat(int fd, struct stat *buf)
+{
+    static int (*real_fstat)(int fd, struct stat *buf) = NULL;
+    if (real_fstat == NULL)
+        real_fstat = dlsym(RTLD_NEXT, "fstat");
 
-//     fileAndDesc *cur;
-//     HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
+    fileAndDesc *cur;
+    HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
 
-//     // Checkk if we are keeping a track of this file or not
-//     if (cur == NULL)
-//     {
-//         return real_fstat(fd, buf);
-//     }
-//     else
-//     {
+    // Checkk if we are keeping a track of this file or not
+    if (cur == NULL)
+    {
+        return real_fstat(fd, buf);
+    }
+    else
+    {
 
-//         int ret = real_fstat(fd, buf);
-//         engineerStat( cur->path, buf, 1);
-//         return ret;
-//     }
-// }
+        int ret = real_fstat(fd, buf);
+        engineerStat( cur->path, buf, 1);
+        return ret;
+    }
+}
 // /*
 //  *
 //  * Wrapper for lstat64 
