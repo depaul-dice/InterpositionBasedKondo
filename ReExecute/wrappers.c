@@ -567,29 +567,29 @@ int fstat(int fd, struct stat *buf)
 //     }
 //     return real_stat64(path, buf);
 // }
-// /*
-//  *
-//  * Wrapper for stat64 
-//  *
-//  */
-// int fstat64(int fd, struct stat64 *buf)
-// {
-//     static int (*real_fstat)(int fd, struct stat64 *buf) = NULL;
-//     if (real_fstat == NULL)
-//         real_fstat = dlsym(RTLD_NEXT, "fstat64");
+ /*
+  *
+  * Wrapper for stat64 
+  *
+ */
+ int fstat64(int fd, struct stat64 *buf)
+ {
+     static int (*real_fstat)(int fd, struct stat64 *buf) = NULL;
+     if (real_fstat == NULL)
+         real_fstat = dlsym(RTLD_NEXT, "fstat64");
 
-//     fileAndDesc *cur;
-//     HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
+     fileAndDesc *cur;
+     HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
 
-//     // Checkk if we are keeping a track of this file or not
-//     if (cur == NULL)
-//     {
-//         return real_fstat(fd, buf);
-//     }
-//     else
-//     {
-//         int ret = real_fstat(fd, buf);
-//         engineerStat( cur->path, buf, 0);
-//         return ret;
-//     }
-// }
+     // Checkk if we are keeping a track of this file or not
+     if (cur == NULL)
+     {
+         return real_fstat(fd, buf);
+     }
+     else
+     {
+         int ret = real_fstat(fd, buf);
+         engineerStat( cur->path, buf, 0);
+         return ret;
+     }
+ }
