@@ -34,17 +34,18 @@ typedef struct{
 } UsedChunks;
 
 typedef struct {
-
     /* data */
     long int start;
     long int end;
+    long int size;
+    long int readSize;
     int tracking;
     UsedChunks *head;
     UsedChunks *tail;
     char path[PATH_MAX];
     struct HeapLocations* next;
 } HeapLocations;
-void setHeap(void *buf, char *path);
+void setHeap(void *buf, char *path, ssize_t n);
 HeapLocations* head = NULL;
 HeapLocations* tail = NULL;
 
