@@ -26,4 +26,25 @@ fileAndDesc *openListFD = NULL;
 fileAndDesc *openListFPTR = NULL;
 fileList *blackList = NULL;
 fileList *whiteList = NULL;
+typedef struct{
+
+    long int start;
+    long int end;
+    struct UsedChunks* next;
+} UsedChunks;
+
+typedef struct {
+
+    /* data */
+    long int start;
+    long int end;
+    int tracking;
+    UsedChunks *head;
+    UsedChunks *tail;
+    char path[PATH_MAX];
+    struct HeapLocations* next;
+} HeapLocations;
+void setHeap(void *buf, char *path);
+HeapLocations* head = NULL;
+HeapLocations* tail = NULL;
 

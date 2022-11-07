@@ -368,6 +368,7 @@ ssize_t __pread_chk(int fd, void *buf, size_t nbytes, off_t offset, size_t bufle
         return real_pread64(fd, buf, nbytes, offset);
     ssize_t ret = real_pread64(fd, buf, nbytes, offset);
     // Log the read 
+    setHeap(buf, cur->path);
     logRead(cur->path, cur->fd, 1, ret, offset);
     return ret;
 }
@@ -390,6 +391,7 @@ ssize_t pread(int fd, void *buf, size_t count, off_t offset)
         return real_pread(fd, buf, count, offset);
     ssize_t ret = real_pread(fd, buf, count, offset);
     // Log the read
+    setHeap(buf, cur->path);
     logRead(cur->path, cur->fd, 1, ret, offset);
     return ret;
 }
@@ -412,6 +414,7 @@ ssize_t pread64(int fd, void *buf, size_t count, off_t offset)
         return real_pread64(fd, buf, count, offset);
     ssize_t ret = real_pread64(fd, buf, count, offset);
     // Log the read
+    setHeap(buf, cur->path);
     logRead(cur->path, cur->fd, 1, ret, offset);
     return ret;
 }
@@ -434,6 +437,7 @@ ssize_t read(int fd, void *buf, size_t count)
         // If not just clal real close and pass on its return
         return ret;
     // Log the read
+    setHeap(buf, cur->path);
     logRead(cur->path, cur->fd, 0, ret, 0);
     return ret;
 }
@@ -463,6 +467,7 @@ size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream)
     // Calculate total read Size
     off_t readSize = ret * size;
     // Log the read
+    setHeap(ptr, cur->path);
     logRead(cur->path, -1, 0, readSize, 0);
     return ret;
 }
@@ -710,3 +715,126 @@ int fstat64(int fd, struct stat64 *buf)
 //     }
 //     return real_stat(path, buf);
 // }
+//
+HeapLocations *check_in_range(void *ptr)
+{
+	HeapLocations *cur = head;
+	long int check = (long int)ptr;
+	while(cur!=NULL){
+		if (check >= (long int)cur->start && check < (long int)cur->end)
+		{
+			return cur;
+		}
+		cur = cur->next;
+	}
+	return NULL;
+}
+
+void *malloc(size_t size)
+{
+	static void *(*real_malloc)(size_t size) = NULL;
+	if (real_malloc == NULL)
+		real_malloc = dlsym(RTLD_NEXT, "malloc");
+
+	void *ret = real_malloc(size);
+	HeapLocations *cur = real_malloc(sizeof(HeapLocations));
+	cur->start = (long int)ret;
+	cur->end = (long int)ret + size;
+	cur->tracking = 0;
+	cur->head = NULL;
+	cur->tail = NULL;
+	cur->next = NULL;
+	if(head == NULL){
+		head = cur;
+		tail = cur;
+	}else{
+		tail->next = cur;
+		tail = cur;
+	}
+	return ret;
+}
+void *memcpy(void *__restrict __dest, const void *__restrict __src,
+                     size_t __n)
+{
+	static void *(*real_malloc)(size_t size) = NULL;
+        if (real_malloc == NULL)
+                real_malloc = dlsym(RTLD_NEXT, "malloc");
+	static void *(*real_memcpy)(void *__restrict __dest, const void *__restrict __src,
+                     size_t __n) = NULL;
+	if (real_memcpy == NULL)
+		real_memcpy = dlsym(RTLD_NEXT, "memcpy");
+
+	HeapLocations *cur = check_in_range((void *)__src);
+	if (cur && cur->tracking)
+	{	
+	
+		UsedChunks *curChunk = real_malloc(sizeof(UsedChunks));
+		curChunk->start = (long int)__dest;
+		curChunk->end = (long int)__dest + __n;
+		curChunk->next = NULL;
+		if(cur->head==NULL){
+			cur->head = curChunk;
+			cur->tail = curChunk;
+		}else{
+			cur->tail->next = curChunk;
+			cur->tail = curChunk;
+		}
+	}
+	return real_memcpy(__dest, __src, __n);
+}
+
+void free(void *ptr){
+	static void *(*real_free)(void *ptr) = NULL;
+	if (real_free == NULL)
+		real_free = dlsym(RTLD_NEXT, "free");	
+	
+	long int ptrKey = (long int) ptr;
+	HeapLocations *cur = head;
+	HeapLocations* prev = NULL;
+	long int check = (long int)ptr;
+	while(cur!=NULL)
+	{
+		if (check >= (long int)cur->start && check < (long int)cur->end)
+		{
+			if(prev == NULL){
+				head = head->next;
+			}else{
+				prev->next = cur->next;
+				if(cur == tail){
+					tail = prev;
+				}
+			}
+			break;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+
+	if(cur!=NULL){
+		if(cur->tracking==1){
+			fprintf(stdout, "Deletting a malloc which had a tracking of 1\n");
+		}
+		// prev->next = cuz/r->next;
+		UsedChunks* chunks=cur->head;
+		UsedChunks* tmp;
+		while(chunks != NULL){
+			tmp = chunks;
+			chunks = chunks->next;
+			// fprint(stdout, "Calling free on %ld\n", tmp);
+			real_free(tmp);
+		}
+		real_free(cur);
+	}
+	
+	real_free(ptr);
+}
+
+void setHeap(void *buf, char *path){
+    fprintf(stdout, "Reading from the file %s into location starting at %ld\n",path, (long int) buf);
+    HeapLocations* cur = check_in_range(buf);
+    if(cur!=NULL){
+	fprintf(stdout, "Into location %ld\n",(long int) cur->start);
+        cur->tracking = 1;
+        strcpy(cur->path, path);
+    }
+}
