@@ -716,6 +716,8 @@ int fstat64(int fd, struct stat64 *buf)
 //     return real_stat(path, buf);
 // }
 //
+//
+
 HeapLocations *check_in_range(void *ptr)
 {
 	HeapLocations *cur = head;
@@ -731,7 +733,8 @@ HeapLocations *check_in_range(void *ptr)
 }
 
 void *malloc(size_t size)
-{
+{   
+    heapSize+=1;
 	static void *(*real_malloc)(size_t size) = NULL;
 	if (real_malloc == NULL)
 		real_malloc = dlsym(RTLD_NEXT, "malloc");
@@ -780,11 +783,12 @@ void *memcpy(void *__restrict __dest, const void *__restrict __src,
 			cur->tail->next = curChunk;
 			cur->tail = curChunk;
 		}
-        fprintf(stdout, "Copying from file %s with actual read size %ld and copying %ld bytes\n",cur->path,cur->readSize, __n);
-	}
+        fprintf(stdout, "Copying from file %s \nwith actual read size %ld \nand copying %ld bytes\n",cur->path,cur->readSize, __n);
+	
+    fprintf(stdout,"The size of the linlist is %d\n",heapSize);
+    }
 	return real_memcpy(__dest, __src, __n);
 }
-
 void free(void *ptr){
 	static void *(*real_free)(void *ptr) = NULL;
 	if (real_free == NULL)
@@ -813,9 +817,9 @@ void free(void *ptr){
 	}
 
 	if(cur!=NULL){
-		if(cur->tracking==1){
-			fprintf(stdout, "Deletting a malloc which had a tracking of 1\n");
-		}
+		// if(cur->tracking==1){
+		// 	fprintf(stdout, "Deletting a malloc which had a tracking of 1\n");
+		// }
 		// prev->next = cuz/r->next;
 		UsedChunks* chunks=cur->head;
 		UsedChunks* tmp;
@@ -831,13 +835,15 @@ void free(void *ptr){
 	real_free(ptr);
 }
 
-void setHeap(void *buf, char *path, ssize_t n){
-    fprintf(stdout, "Reading from the file %s into location starting at %ld\n",path, (long int) buf);
+HeapLocations* setHeap(void *buf, char *path, ssize_t n){
+    // fprintf(stdout, "Reading from the file %s into location starting at %ld\n",path, (long int) buf);
     HeapLocations* cur = check_in_range(buf);
     if(cur!=NULL){
-	fprintf(stdout, "Into location %ld\n",(long int) cur->start);
+	// fprintf(stdout, "Into location %ld\n",(long int) cur->start);
         cur->tracking = 1;
         cur->readSize = n;
+        cur->timestamp = logicalTimestamp;
         strcpy(cur->path, path);
     }
+    return cur;
 }

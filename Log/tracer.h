@@ -26,26 +26,29 @@ fileAndDesc *openListFD = NULL;
 fileAndDesc *openListFPTR = NULL;
 fileList *blackList = NULL;
 fileList *whiteList = NULL;
-typedef struct{
 
-    long int start;
-    long int end;
+typedef struct{
+    long int start; // start offswt of chunk used
+    long int end; // end offset of chuk sed
     struct UsedChunks* next;
 } UsedChunks;
 
 typedef struct {
     /* data */
-    long int start;
-    long int end;
-    long int size;
-    long int readSize;
-    int tracking;
-    UsedChunks *head;
+    long int start; // Start offset in heap
+    long int end; // End location in heap
+    long int size; // Size of heap location
+    long int readSize; // Amount of data read into it
+    int tracking; // Boolean to se if sensitive
+    int timestamp; // Timestamp corresponding to read call
+    UsedChunks *head; // Chubnks of used data
     UsedChunks *tail;
-    char path[PATH_MAX];
+    char path[PATH_MAX]; // Path of file read from
     struct HeapLocations* next;
 } HeapLocations;
-void setHeap(void *buf, char *path, ssize_t n);
+
+HeapLocations* setHeap(void *buf, char *path, ssize_t n);
 HeapLocations* head = NULL;
 HeapLocations* tail = NULL;
 
+int heapSize = 0;

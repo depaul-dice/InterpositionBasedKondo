@@ -107,6 +107,15 @@ void logRead(char *path, int fd, int type, off_t size, off_t offset)
     HASH_FIND_STR(fileTrace, path, file);
     if (file != NULL)
     {
+        // if(file->head == NULL){
+        //     file->head = heap;
+        //     file->tail = heap;
+        // }else{
+        //     HeapLocations* cur = file->head;
+        //     while(cur!=NULL){
+        //         if(cur->next==NULL)
+        //     }
+        // }
         Call *newCall = malloc(sizeof(Call));
         if (type == 0)
         {

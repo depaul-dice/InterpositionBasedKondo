@@ -59,8 +59,8 @@ typedef struct fileTraceObject{
 
 }fileTraceObject;
 
+extern struct HeapLocations ; 
 fileTraceObject *fileTrace = NULL;
-
 int setup = 0;
 
 int logicalTimestamp = 0;
