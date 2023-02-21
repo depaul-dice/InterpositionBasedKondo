@@ -101,7 +101,7 @@ void setToClose(char *path)
  * @param size Size of the read
  *
  */
-void logRead(char *path, int fd, int type, off_t size, off_t offset)
+void logRead(char *path, int fd, int type, off_t size, off_t offset, void* HeapLocation)
 {
     fileTraceObject *file;
     HASH_FIND_STR(fileTrace, path, file);
@@ -131,6 +131,7 @@ void logRead(char *path, int fd, int type, off_t size, off_t offset)
         newCall->nextCall = NULL;
         newCall->opSize = size;
         newCall->timestamp = logicalTimestamp++;
+        newCall->HeapLocation = HeapLocation;
         if (file->firstCall == NULL)
         {
             file->firstCall = newCall;
@@ -474,7 +475,9 @@ void flushToFile(fileTraceObject *file)
         fptr = fopen(path, "w");
     if (fptr == NULL)
         fprintf(stdout, "Is null\n");
-    fprintf(fptr, "%s:%ld\n", file->path, file->size);
+    struct stat stat;
+    lstat(file->path, &stat);
+    fprintf(fptr, "%s:%ld\n", file->path, stat.st_size);
     fprintf(fptr, "ReadList\n");
     GlobalReadList *head = file->readList;
     char buf[100];

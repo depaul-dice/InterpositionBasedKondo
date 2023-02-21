@@ -8,6 +8,7 @@ from parse import *
 def getLines(filename):
     """Given a filename  open the file and read all lines from it
     and return it as a list"""
+    print("Getting {}".format(filename))
     with open(filename, "r") as fin:
         return fin.readlines()
 
@@ -127,7 +128,11 @@ def createNewRead(subsetData, backupData, callList):
     return a list of dictionary where each dictioanry is the composition of those calls
     from the subset and backupdata"""
     ret = []
+    index = 0
     for call in callList:
+        if(index%1000==0):
+            print("Finished {}".format(index))
+        index+=1
         callDescriptor = []
         if(int(call["type"]) == 1):
             s = int(call["offset"])
@@ -233,6 +238,8 @@ def readFromBackup(filename, backupList, pathBackup):
 def processFiles(pathTrace, pathBackup):
     """Process each file in the given path"""
     for filename in os.listdir(pathTrace):
+        if(filename == "subsets" or filename == "pointers"):
+            continue
         if os.path.isdir(filename):
             continue
         Lines = getLines(filename)
@@ -244,7 +251,9 @@ def processFiles(pathTrace, pathBackup):
         backupList = getBackupList(Lines)
         read_Data = readFromFile(readLisst, origPath)
         subsetData = storeSubset(read_Data, filename, pathTrace)
+        print("Calling create new read")
         readPointers = createNewRead(subsetData, backupList, callList)
+        print("Done")
         flushToFile(readPointers, filename, pathTrace, size)
 
 

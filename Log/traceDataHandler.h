@@ -22,6 +22,7 @@ typedef struct Call{
     off_t offset;
     off_t opSize;
     int timestamp;
+    void* HeapLocation;
     struct Call* nextCall;
 }Call;
 
@@ -72,7 +73,7 @@ void printFileObjects();
 
 void setToClose(char* path);
 
-void logRead(char* path, int fd, int type, off_t size, off_t offset);
+void logRead(char* path, int fd, int type, off_t size, off_t offset, void* HeapLocation);
 
 GlobalReadList *addtoReadList(Call *call, GlobalReadList *head);
 
