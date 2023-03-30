@@ -193,7 +193,8 @@ void getData(void* buf, SubsetPointer* cur, fileInfo* curFile){
  */
 void engineerStat(char *path, void *buf, int loc){
     fileInfo* curFile;
-    HASH_FIND(hh, Fname , path, PATH_MAX*sizeof(char), curFile);
+    unsigned int size = sizeof(path);
+    HASH_FIND(hh, Fname , path, size, curFile);
     if(curFile==NULL){
         return;
     }
