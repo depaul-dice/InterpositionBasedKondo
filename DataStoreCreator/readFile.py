@@ -3,12 +3,11 @@ import os
 import sys
 # from turtle import towards
 from parse import *
-
+from intervaltree import Interval, IntervalTree
 
 def getLines(filename):
     """Given a filename  open the file and read all lines from it
     and return it as a list"""
-    print("Getting {}".format(filename))
     with open(filename, "r") as fin:
         return fin.readlines()
 
@@ -16,7 +15,8 @@ def getLines(filename):
 def getReadList(Lines):
     """Given a list of lines from the log file return a list of dictionaries
      of offsets of data that were read"""
-    ret = []
+    ret = IntervalTree()
+
     # Skip to read calls
     if(Lines[1].strip() != "ReadList"):
         print("Error in file order")
@@ -28,7 +28,8 @@ def getReadList(Lines):
             break
         format_string = "{}:{}"
         parsed = parse(format_string, curLine)
-        ret.append({"start": parsed[0], "end": parsed[1]})
+        # ret[.append({"start": parsed[0], "end": parsed[1]})]
+        ret[int(parsed[0]):int(parsed[1])] = {"data": None}
     return ret
 
 
@@ -36,7 +37,7 @@ def getCallList(Lines):
     """ Given a list of lines from the log file return a list of dictionaries
     of read and write calls made to the file"""
     index = 0
-    ret = []
+    ret = IntervalTree()
     # Skip to start of read calls
     for i in range(len(Lines)):
         curLine = Lines[i].strip()
@@ -50,13 +51,14 @@ def getCallList(Lines):
             break
         format_string = "{}:{}:{}:{}:{}"
         parsed = parse(format_string, curLine)
-        ret.append({
-            "location": parsed[0],
-            "offset": parsed[1],
-            "OpSize": parsed[2],
-            "timestamp": parsed[3],
-            "type": parsed[4]
-        })
+        if parsed[4] == "1":
+            ret[int(parsed[1]):int(parsed[1])+int(parsed[2])] = {            
+                "location": parsed[0],
+                "offset": parsed[1],
+                "OpSize": parsed[2],
+                "timestamp": parsed[3],
+                "type": parsed[4]
+                }
     return ret
 
 
@@ -64,15 +66,11 @@ def readFromFile(readList, path):
     """Given a list of offsets that were read and path to the file read from
     return a dictionary with the offsets and the data"""
     fd = os.open(path, os.O_RDONLY)
-    newlist = []
     for read in readList:
-        s = int(read["start"])
-        e = int(read["end"])
         newread = deepcopy(read)
-        os.lseek(fd, s, os.SEEK_SET)
-        newread["data"] = os.read(fd, e-s)
-        newlist.append(newread)
-    return newlist
+        os.lseek(fd, read[0], os.SEEK_SET)
+        read.data["data"] = os.read(fd, read[1]-read[0])
+    return readList
 
 
 def storeSubset(readData, filename, pathTrace):
@@ -80,20 +78,15 @@ def storeSubset(readData, filename, pathTrace):
     os.chdir(pathTrace)
     os.chdir("subsets")
     fd = os.open(filename, os.O_WRONLY | os.O_CREAT)
-    newList = []
     curPos = 0
-    toWrite = bytearray()
     for val in readData:
-        s = int(val["start"])
-        e = int(val["end"])
-        d = val["data"]
+        s = val.begin
+        e = val.end
+        d = val.data["data"]
         os.write(fd, d)
-        newVal = {"start": s,
-                  "end": e,
-                  "offsetBackup": curPos}
+        val.data["offsetBackup"] = curPos
         curPos += (e-s)
-        newList.append(newVal)
-    return newList
+    return readData
 
 
 def checkOverlap(s1, e1, s2, e2):
@@ -122,6 +115,52 @@ def getAdditions(s, e, s1, e1):
             return [(s, s1)]
     return [(s, s1), (e1, e)]
 
+
+def createPointers(subsetTree, backupTree, callList):
+    print("In Create pointers")
+    # loop through all calls
+    # callList = sorted(callList, key = lambda x: int(x.data["timestamp"]))
+    for call in callList:
+        desc = []
+        # check for all the overlaps with backup and then remove everything
+        # that has a timestamp lesser than it
+        curCall = IntervalTree([Interval(call.begin, call.end)])
+        callTimestamp = int(call.data["timestamp"])
+        backupOverlap = list(sorted(backupTree[call.begin:call.end], key= lambda x: int(x.data["timestamp"])))
+        backupOverlap = list(filter( lambda x: False if(int(x.data["timestamp"])<=int(call.data["timestamp"]))  else True,backupOverlap))
+        for backupObject in backupOverlap:
+            curOverlap = list(curCall[backupObject.begin:backupObject.end])
+            for overlap in curOverlap:
+                overlapRegion = getOverlap(overlap.begin, overlap.end, backupObject.begin, backupObject.end)
+                curCall.chop(overlapRegion[0],overlapRegion[1])
+                desc.append({
+                    "originalStart": overlapRegion[0],
+                    "backup": 1,
+                    "offset": (overlapRegion[0]-int(backupObject.data["originalStart"]))+int(backupObject.data["backupStart"]),
+                    "size": overlapRegion[1]-overlapRegion[0]
+                })
+                if len(curCall) == 0:
+                    break
+            if len(curCall) == 0:
+                break
+        fileOverlap = subsetTree[call.begin:call.end]
+        for subsetObject in fileOverlap:
+            curOverlap = list(curCall[subsetObject.begin:subsetObject.end])
+            for overlap in curOverlap:
+                overlapRegion = getOverlap(overlap.begin, overlap.end, subsetObject.begin, subsetObject.end)
+                curCall.chop(overlapRegion[0],overlapRegion[1])
+                desc.append({
+                    "originalStart": overlapRegion[0],
+                    "backup": 0,
+                    "offset": subsetObject.data["offsetBackup"]+overlapRegion[0]-subsetObject.begin,
+                    "size": overlapRegion[1]-overlapRegion[0]
+                })
+                if len(curCall) == 0:
+                    break
+            if len(curCall) == 0:
+                    break
+        call.data["pointers"]  = desc
+    return callList
 
 def createNewRead(subsetData, backupData, callList):
     """Given data from the subsets and versions and all the read calls
@@ -188,11 +227,12 @@ def flushToFile(data, filename, pathTrace, size):
     os.chdir("pointers")
     fd = os.open(filename, os.O_RDWR | os.O_CREAT)
     os.write(fd, ("{}\n".format(size)).encode())
+    data = sorted(data, key = lambda x: int(x.data["timestamp"]))
     for d in data:
-        timestamp = d["timestamp"]
-        l = len(d["pointers"])
-        os.write(fd, (str(timestamp)+":"+str(l)+":"+d["OpSize"]+"\n").encode())
-        for pointer in d["pointers"]:
+        timestamp = d.data["timestamp"]
+        l = len(d.data["pointers"])
+        os.write(fd, (str(timestamp)+":"+str(l)+":"+d.data["OpSize"]+"\n").encode())
+        for pointer in d.data["pointers"]:
             os.write(fd, ("{}:{}:{}\n".format(
                 pointer["backup"], pointer["offset"], pointer["size"])).encode())
     os.close(fd)
@@ -203,7 +243,7 @@ def getBackupList(Lines):
     """Given a list of lines from log file read all the backed up info
     metadata"""
     index = 0
-    ret = []
+    ret = IntervalTree()
     for i in range(len(Lines)):
         curLine = Lines[i].strip()
         if(curLine == "Backups"):
@@ -213,12 +253,12 @@ def getBackupList(Lines):
         curLine = Lines[i].strip()
         format_string = "{}:{}:{}:{}"
         parsed = parse(format_string, curLine)
-        ret.append({
+        ret[int(parsed[1]):int(parsed[1])+int(parsed[2])]={
             "backupStart": parsed[0],
             "originalStart": parsed[1],
             "Size": parsed[2],
             "timestamp": parsed[3],
-        })
+        }
     return ret
 
 
@@ -251,18 +291,19 @@ def processFiles(pathTrace, pathBackup):
         backupList = getBackupList(Lines)
         read_Data = readFromFile(readLisst, origPath)
         subsetData = storeSubset(read_Data, filename, pathTrace)
-        print("Calling create new read")
-        readPointers = createNewRead(subsetData, backupList, callList)
+        readPointers = createPointers(subsetData, backupList, callList)
+        for item in readPointers:
+            print(item)
         print("Done")
         flushToFile(readPointers, filename, pathTrace, size)
 
 
 def main():
     pathTrace = sys.argv[1]
-    pathBackup = sys.argv[2]
+    pathBackup =  sys.argv[2]
     os.chdir(pathTrace)
-    os.mkdir("pointers")
-    os.mkdir("subsets")
+    os.makedirs("pointers", exist_ok=True)
+    os.makedirs("subsets", exist_ok=True)
     processFiles(pathTrace, pathBackup)
 
 

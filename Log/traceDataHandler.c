@@ -20,7 +20,7 @@ int checkSetup()
 void finishSetup()
 {
     // make directory to store backups
-    mkdir("backups", 0x0700);
+    mkdir("backups", 0777);
 }
 
 /*
@@ -336,7 +336,7 @@ void performBackup(char *path, int type, off_t nbytes, off_t offset)
                     cur = cur->next;
                     // Case 3 wS rS rE wE = Remove the full read
                 }
-                else if (writeStart < readStart && readEnd < writeEnd)
+                else if (writeStart <= readStart && readEnd <= writeEnd)
                 {
                     if (cur == head)
                     {
@@ -432,16 +432,23 @@ void storeVersion(fileTraceObject *file, char *path, off_t start, off_t end)
     chdir("backups");
     // Grab the base file name from the path
     char *bname = strrchr(file->path, '/');
-    FILE *fptr = fopen(bname + 1, "a");
-    fwrite(buf, end - start, 1, fptr);
-    fclose(fptr);
+    static FILE *(*real_fopen)(const char *filename, const char *mode) = NULL;
+    if (real_fopen == NULL)
+        real_fopen = dlsym(RTLD_NEXT, "fopen");
+    FILE *fptr = real_fopen(bname + 1, "a");
+
+    ret = fwrite(buf, end - start, 1, fptr);
+    static int (*real_fclose)(FILE * stream) = NULL;
+    if (!real_fclose)
+        real_fclose = dlsym(RTLD_NEXT, "fclose");
+    real_fclose(fptr);
     chdir("..");
 
     versionedData *newVersion = malloc(sizeof(versionedData));
     newVersion->origStart = start;
     newVersion->backupfileStart = file->backupSize;
     file->backupSize += end - start;
-    newVersion->size = ret;
+    newVersion->size = ret*(end-start);
     newVersion->timestamp = logicalTimestamp;
     newVersion->next = NULL;
     if (file->firstVerstion == NULL)

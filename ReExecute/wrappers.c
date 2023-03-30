@@ -593,3 +593,54 @@ int fstat(int fd, struct stat *buf)
          return ret;
      }
  }
+
+
+/*
+ *
+ * Wrapper for write
+ *
+ */
+ssize_t write(int fildes, const void *buf, size_t nbytes)
+{
+    // Create pointer and grab real write using dlsym
+    static ssize_t (*real_write)(int fildes, const void *buf, size_t nbytes) = NULL;
+    if (!real_write)
+        real_write = dlsym(RTLD_NEXT, "write");
+    fileAndDesc *cur;
+    HASH_FIND(hh2, openListFD, &fildes, sizeof(int), cur);
+
+    // Checkk if we are keeping a track of this file or not
+    if (cur == NULL)
+    {
+        return real_write(fildes, buf, nbytes);
+    }
+    // Call helper function to log and version for the write call
+    logicalTime++;
+    // Call and pass on real write
+    return real_write(fildes, buf, nbytes);
+}
+
+
+/*
+ *
+ * Wrapper for pwrite
+ *
+ */
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+    static ssize_t (*real_pwrite)(int fd, const void *buf, size_t count, off_t offset) = NULL;
+    if (real_pwrite == NULL)
+        real_pwrite = dlsym(RTLD_NEXT, "pwrite");
+    fileAndDesc *cur;
+    HASH_FIND(hh2, openListFD, &fd, sizeof(int), cur);
+
+    // Checkk if we are keeping a track of this file or not
+    if (cur == NULL)
+    {
+        return real_pwrite(fd, buf, count, offset);
+    }
+    // Call helper function to log and version for the write call
+    logicalTime++;
+    // Call and pass on real write
+    return real_pwrite(fd, buf, count, offset);
+}

@@ -60,7 +60,7 @@ typedef struct fileTraceObject{
 
 }fileTraceObject;
 
-extern struct HeapLocations ; 
+struct HeapLocations ; 
 fileTraceObject *fileTrace = NULL;
 int setup = 0;
 

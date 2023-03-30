@@ -727,7 +727,7 @@ HeapLocations *check_in_range(void *ptr)
 		{
 			return cur;
 		}
-		cur = cur->next;
+		cur = (HeapLocations *)cur->next;
 	}
 	return NULL;
 }
