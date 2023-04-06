@@ -4,6 +4,7 @@ import sys
 # from turtle import towards
 from parse import *
 from intervaltree import Interval, IntervalTree
+import time
 
 def getLines(filename):
     """Given a filename  open the file and read all lines from it
@@ -282,6 +283,7 @@ def processFiles(pathTrace, pathBackup):
             continue
         if os.path.isdir(filename):
             continue
+        tic = time.perf_counter()
         Lines = getLines(filename)
         parsed = parse("{}:{}", Lines[0].strip())
         origPath = parsed[0]
@@ -292,11 +294,11 @@ def processFiles(pathTrace, pathBackup):
         read_Data = readFromFile(readLisst, origPath)
         subsetData = storeSubset(read_Data, filename, pathTrace)
         readPointers = createPointers(subsetData, backupList, callList)
-        for item in readPointers:
-            print(item)
-        print("Done")
+        #for item in readPointers:
+         #   print(item)
         flushToFile(readPointers, filename, pathTrace, size)
-
+        toc = time.perf_counter()
+        print("Time taken to process {} is {}\n".format(filename, toc-tic))
 
 def main():
     pathTrace = sys.argv[1]
