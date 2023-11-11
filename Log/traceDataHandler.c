@@ -287,6 +287,11 @@ void performBackup(char *path, int type, off_t nbytes, off_t offset)
         {
             writeStart = file->filePointer;
         }
+        // if(writeStart==0 && nbytes==96)
+        // {
+        //     logicalTimestamp++;
+        //     return;
+        // }
         // Set the end of the write and other metadata
         writeEnd = writeStart + nbytes;
         Call *newCall = malloc(sizeof(Call));

@@ -617,7 +617,7 @@ ssize_t write(int fildes, const void *buf, size_t nbytes)
     // Call helper function to log and version for the write call
     logicalTime++;
     // Call and pass on real write
-    return real_write(fildes, buf, nbytes);
+    return nbytes;
 }
 
 
@@ -642,5 +642,5 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
     // Call helper function to log and version for the write call
     logicalTime++;
     // Call and pass on real write
-    return real_pwrite(fd, buf, count, offset);
+    return count;
 }
