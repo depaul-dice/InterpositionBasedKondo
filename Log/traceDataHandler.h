@@ -64,6 +64,8 @@ extern struct HeapLocations ;
 fileTraceObject *fileTrace = NULL;
 int setup = 0;
 
+int readCount = 0;
+int GlobalReadListCount = 0;
 int logicalTimestamp = 0;
 int checkSetup();
 

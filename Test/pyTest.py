@@ -7,9 +7,10 @@ def openDataset(file, datasetName):
     return file[datasetName]
 
 def main():
-    fileObj = openFile("/home/rohan/Documents/Research/presentation/InterpositionBasedMiDas/Test/Datasets/Mat1000x1000Comp.h5","r")
+    fileObj = openFile("/home/rohan/Research/InterpositionBasedMiDas/Test/Datasets/Mat1000x1000Comp.h5","r")
     dataset = openDataset(fileObj, "matrix")
     print(dataset.chunks)
+    print(dataset[:,:])
     #print(dataset[0:3,0:2])
     #0:100,0:100
     #950:1000,400:700 

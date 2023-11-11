@@ -103,6 +103,7 @@ void setToClose(char *path)
  */
 void logRead(char *path, int fd, int type, off_t size, off_t offset, void* HeapLocation)
 {
+    readCount++;
     fileTraceObject *file;
     HASH_FIND_STR(fileTrace, path, file);
     if (file != NULL)
@@ -206,7 +207,7 @@ GlobalReadList *addtoReadList(Call *call, GlobalReadList *head)
             cur = cur->next;
         }
     }
-
+    GlobalReadListCount++;
     cur = newHead;
     while (cur != NULL)
     {
@@ -221,6 +222,7 @@ GlobalReadList *addtoReadList(Call *call, GlobalReadList *head)
             GlobalReadList *temp = cur->next;
             cur->next = cur->next->next;
             free(temp);
+            GlobalReadListCount--;
         }
         else
         {
@@ -502,6 +504,7 @@ void flushToFile(fileTraceObject *file)
     }
     fclose(fptr);
     chdir("..");
+    fprintf(stdout, "The counts are:\nRead:%d CombinedReadList:%d\n",readCount, GlobalReadListCount);
 }
 
 /*

@@ -129,8 +129,9 @@ def createNewRead(subsetData, backupData, callList):
     from the subset and backupdata"""
     ret = []
     index = 0
+    print("The len is {}\n".format(len(callList)))
     for call in callList:
-        if(index%1000==0):
+        if(index%100==0):
             print("Finished {}".format(index))
         index+=1
         callDescriptor = []
@@ -139,25 +140,25 @@ def createNewRead(subsetData, backupData, callList):
             e = int(call["OpSize"])+s
             offsets = [(s, e)]
             status = 1
-            for backup in backupData:
-                backS = int(backup["originalStart"])
-                backE = int(backup["Size"]) + backS
-                i = 0
-                while (i < len(offsets)):
-                    cur = offsets[i]
-                    if checkOverlap(cur[0], cur[1], backS, backE) and int(call["timestamp"]) < int(backup["timestamp"]):
-                        oS, oE = getOverlap(cur[0], cur[1], backS, backE)
-                        callDescriptor.append({
-                            "originalStart": oS,
-                            "backup": 1,
-                            "offset": (oS-int(backup["originalStart"]))+int(backup["backupStart"]),
-                            "size": oE-oS
-                        })
-                        ext = getAdditions(cur[0], cur[1], oS, oE)
-                        del offsets[i]
-                        offsets.extend(ext)
-                    else:
-                        i += 1
+            # for backup in backupData:
+            #     backS = int(backup["originalStart"])
+            #     backE = int(backup["Size"]) + backS
+            #     i = 0
+            #     while (i < len(offsets)):
+            #         cur = offsets[i]
+            #         if checkOverlap(cur[0], cur[1], backS, backE) and int(call["timestamp"]) < int(backup["timestamp"]):
+            #             oS, oE = getOverlap(cur[0], cur[1], backS, backE)
+            #             callDescriptor.append({
+            #                 "originalStart": oS,
+            #                 "backup": 1,
+            #                 "offset": (oS-int(backup["originalStart"]))+int(backup["backupStart"]),
+            #                 "size": oE-oS
+            #             })
+            #             ext = getAdditions(cur[0], cur[1], oS, oE)
+            #             del offsets[i]
+            #             offsets.extend(ext)
+            #         else:
+            #             i += 1
             for subset in subsetData:
                 i = 0
                 while(i < len(offsets)):
